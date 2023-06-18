@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include <WiFi.h>
 
 #include "constants.h"
@@ -9,6 +10,9 @@
 #include "webserver.h"
 #include "screen.h"
 #include "mode/mode.h"
+
+unsigned long previousMillis = 0;
+unsigned long interval = 30000;
 
 void setup()
 {
@@ -52,6 +56,7 @@ void setup()
   initWebServer();
 #endif
 
+  Screen.setup();
   Screen.clear();
   loadMode();
   Screen.loadFromStorage();
@@ -60,9 +65,15 @@ void setup()
 void loop()
 {
   loopOfAllModes();
-
+  unsigned long currentMillis = millis();
+  // if WiFi is down, try reconnecting every CHECK_WIFI_TIME seconds
+  if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval)) {
+    Serial.println("Reconnecting to WiFi...");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    previousMillis = currentMillis;
+  }
 #ifdef ENABLE_SERVER
   cleanUpClients();
 #endif
-  delay(20);
 }
