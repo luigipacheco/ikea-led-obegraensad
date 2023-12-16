@@ -27,15 +27,16 @@
 #endif
 
 #ifdef ENABLE_SERVER
+// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
 #define NTP_SERVER "us.pool.ntp.org"
-#define TZ_INFO "UTC+4,M3.5.0/02:00:00,M10.5.0/03:00:00"
+#define TZ_INFO "UTC+5,M3.5.0/02:00:00,M10.5.0/03:00:00"
 #endif
 
 #define COLS 16
 #define ROWS 16
 
 // set your city or coords (https://github.com/chubin/wttr.in)
-#define WEATHER_LOCATION "Miami"
+#define WEATHER_LOCATION "miami"
 
 // name of WiFi created by the device if no known WiFi is available
 #define WIFI_MANAGER_SSID "Ikea Display Setup WiFi"
