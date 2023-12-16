@@ -8,7 +8,6 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
 
 ![ezgif-3-2019fca7a4](https://user-images.githubusercontent.com/15351728/200184222-a590575d-983d-4ab8-a322-c6bcf433d364.gif)
 
-
 ## Features
 
 - Persist your drawing
@@ -18,8 +17,9 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
 - Wifi Control
 - Web-GUI
 - Load an image
-- Switch mode by pressing the button
-- Modes
+- Switch plugin by pressing the button
+- Plugins
+  - Draw
   - Game of life
   - Breakout
   - Snake
@@ -27,8 +27,11 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
   - Lines
   - Circle
   - Clock
+  - Big Clock
   - Weather
-- Custom Animation with the "Creator"
+  - Rain
+  - Animation with the "Creator"
+  - Firework
 
 # Control the board
 
@@ -46,6 +49,7 @@ The ESP32 I used:
 <img src="https://user-images.githubusercontent.com/15351728/200148521-86d0f9e6-2c41-4707-b2d9-8aa24a0e440e.jpg" width="60%" />
 
 Verified to work with TTGO LoRa32 V2.1 (T3_V1.6.1).
+Note: On esp8266 per pixel brightness only works when storage and global brightness (analogWrite) are disabled.
 
 ## Open the lamp
 
@@ -65,7 +69,7 @@ Above is a microcontroller. You have to remove it, because it contains the stand
 - Open folder with VSCode
 - Install platformIO (https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide)
 - Set all variables
-  - Wifi
+  - Wifi (on ESP8266)
   - Upload
   - Your Pins
   - Latitude, Longitude, City etc. (https://github.com/chubin/wttr.in)
@@ -77,9 +81,12 @@ Variables can be found inside `include/constants.h`.
 ```cpp
 #pragma once
 
+#define WIFI_HOSTNAME ""
+
+#ifdef ESP8266
 #define WIFI_SSID ""
 #define WIFI_PASSWORD ""
-#define WIFI_HOSTNAME ""
+#endif
 
 #define OTA_USERNAME ""
 #define OTA_PASSWORD ""
@@ -87,40 +94,119 @@ Variables can be found inside `include/constants.h`.
 
 also set username and password inside `upload.py`, if you want to use OTA Updates.
 
+### Configuring WiFi with WiFi manager
+
+_Note:_ The WiFi manager only works on ESP32. For ESP8266, `WIFI_SSID` and `WIFI_PASSWORD` need to be provided in `secrets.h`.
+
+This project uses [tzapu's WiFiManager](https://github.com/tzapu/WiFiManager). After booting up, the device will try
+to connect to known access points. If no known access point is available, the device will create a network called
+`Ikea Display Setup WiFi`. Connect to this network on any device. A captive portal will pop up and will take you
+through the configuration process. After a successful connection, the device will reboot and is ready to go.
+
+The name of the created network can be changed by modifying `WIFI_MANAGER_SSID` in `include/constants.h`.
+
 ### PINS
 
 Connect them like this and remember to set them in `include/constants.h` according to your board.
 
-| LCD              | ESP32  | TTGO LoRa32 |
-| :----------------|:------:|:-----------:|
-| GND              | GND    | GND         |
-| VCC              | 5V     | 5V          |
-| EN               | GPIO26 | IO22        |
-| IN               | GPIO27 | IO23        |
-| CLK              | GPIO14 | IO02        |
-| CLA              | GPIO12 | IO15        |
-| BUTTON one end   | GPIO16 | IO21        |
-| BUTTON other end | GND    | GND         |
+| LCD              | ESP32  | TTGO LoRa32 | NodeMCUv2 |Lolin D32 (Pro) |
+| :--------------: | :----: | :---------: | :-------: | :------------: |
+| GND              |  GND   |     GND     |    GND    | GND            |
+| VCC              |   5V   |     5V      |    VIN    | USB            |
+| EN (PIN_ENABLE)  | GPIO26 |    IO22     | GPIO16 D0 | GPIO26         |
+| IN (PIN_DATA)    | GPIO27 |    IO23     | GPIO13 D7 | GPIO27         |
+| CLK (PIN_CLOCK)  | GPIO14 |    IO02     | GPIO14 D5 | GPIO14         |
+| CLA (PIN_LATCH)  | GPIO12 |    IO15     | GPIO0 D3  | GPIO12         |
+| BUTTON one end   | GPIO16 |    IO21     | GPIO2 D4  | GPIO25         |
+| BUTTON other end |  GND   |     GND     |    GND    | GND            |
 
 <img src="https://user-images.githubusercontent.com/86414213/205999001-6213fc4f-be2f-4305-a17a-44fdc9349069.jpg" width="60%" />
 
 # Development
 
 - `src` contains the arduino code.
+
   - Run it with platform io
   - You can uncomment the OTA lines in `platform.ini` if you want. Replace the IP with your device IP.
 
 - `frontend` contains the web code.
+
   - First run `npm i`
   - Set your device IP inside the `.env` file
   - Start the server with `npm run dev`
   - Build it with `npm run build`. This command creates the `webgui.cpp` for you.
 
+- Build frontend using `Docker`
+  - From the root of the repo, run `docker compose run node`
+
+## Plugins
+
+1. Start by creating a new C++ file for your plugin. For example, let's call it plugins/MyPlugin.(cpp/h).
+
+**plugins/MyPlugin.h**
+
+```cpp
+#pragma once
+
+#include "PluginManager.h"
+
+class MyPlugin : public Plugin {
+public:
+    MyPlugin();
+    ~MyPlugin() override;
+
+    void setup() override;
+    void loop() override;
+    const char* getName() const override;
+
+    void teardown() override; // optional
+    void websocketHook(DynamicJsonDocument &request) override; // optional
+};
+```
+
+**plugins/MyPlugin.cpp**
+
+```cpp
+#include "plugins/MyPlugin.h"
+
+MyPlugin::MyPlugin() {
+    // Constructor logic, if needed
+}
+
+void MyPlugin::setup() {
+    // Setup logic for your plugin
+}
+
+void MyPlugin::loop() {
+    // Loop logic for your plugin
+}
+
+const char* MyPlugin::getName() const {
+    return "MyPlugin"; // name in GUI
+}
+
+void MyPlugin::teardown() {
+  // code if plugin gets deactivated
+}
+
+void MyPlugin::websocketHook(DynamicJsonDocument &request) {
+  // handle websocket requests
+}
+```
+
+2. Add your plugin to the `main.cpp`.
+
+```cpp
+#include "plugins/MyPlugin.h"
+
+pluginManager.addPlugin(new MyPlugin());
+```
+
 # Ideas
 
-[] gifs
-[] animation upload
-[] use `<canvas />`
+- [ ] gifs
+- [ ] animation upload
+- [ ] use `<canvas />`
 
 ## Credits
 
